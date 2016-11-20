@@ -619,7 +619,18 @@ the object file's name just above."
           (make-local-variable 'flycheck-cppcheck-include-path)
           (setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags))))
 
+        (make-local-variable 'flycheck-clang-includes)
         (setq flycheck-clang-includes includes)
+        (make-local-variable 'flycheck-gcc-include-path)
+        (setq flycheck-gcc-include-path flycheck-clang-include-path)
+        (make-local-variable 'flycheck-gcc-definitions)
+        (setq flycheck-gcc-definitions flycheck-clang-definitions)
+        (make-local-variable 'flycheck-gcc-args)
+        (setq flycheck-gcc-args (cmake-ide--filter-output-flags flycheck-clang-args))
+        (make-local-variable 'flycheck-gcc-language-standard)
+        (setq flycheck-gcc-language-standard flycheck-clang-language-standard)
+        (make-local-variable 'flycheck-gcc-includes)
+        (setq flycheck-gcc-includes flycheck-clang-includes)
         (flycheck-clear)
         (run-at-time "0.5 sec" nil 'flycheck-buffer)))))
 
@@ -800,13 +811,17 @@ the object file's name just above."
          (dashes (cmake-ide--filter #'cmake-ide--dash-i-or-dash-d-p flags)))
     (append (delete-dups dashes) rest)))
 
+(defun cmake-ide--filter-output-flags (flags)
+  (setq flags (cmake-ide--filter (lambda (x) (not (equal x "-o"))) flags))
+  (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".o" x))) flags))
+  (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".obj" x))) flags))
+  flags)
+
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
   (let* ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args-string commands)))
          (flags (cmake-ide--args-to-only-flags args)))
-    (setq flags (cmake-ide--filter (lambda (x) (not (equal x "-o"))) flags))
-    (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".o" x))) flags))
-    (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".obj" x))) flags))
+    (setq flags (cmake-ide--filter-output-flags flags))
     (cmake-ide--delete-dup-hdr-flags flags)))
 
 (defun cmake-ide--params-to-src-includes (file-params)
